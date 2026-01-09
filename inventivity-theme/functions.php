@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-define( 'INVENTIVITY_THEME_VERSION', '1.2.0' );
+define( 'INVENTIVITY_THEME_VERSION', '1.3.0' );
 
 /**
  * Theme setup.
@@ -95,12 +95,70 @@ if ( ! function_exists( 'inventivity_is_perf_enabled' ) ) {
  */
 if ( ! function_exists( 'inventivity_theme_customize_register' ) ) {
     function inventivity_theme_customize_register( $wp_customize ) {
+        // Main theme panel (kept intentionally small and practical).
+        $wp_customize->add_panel(
+            'inventivity_theme_panel',
+            array(
+                'title'       => __( 'Inventivity Theme', 'inventivity-theme' ),
+                'priority'    => 160,
+                'description' => __( 'Front-end focused options for Elementor-first builds. Safe-by-default.', 'inventivity-theme' ),
+            )
+        );
+
         $wp_customize->add_section(
             'inventivity_theme_options',
             array(
-                'title'       => __( 'Inventivity Theme Options', 'inventivity-theme' ),
-                'priority'    => 160,
+                'title'       => __( 'Performance & Assets', 'inventivity-theme' ),
+                'panel'       => 'inventivity_theme_panel',
+                'priority'    => 10,
                 'description' => __( 'Safe-by-default toggles. Turn ON only what you want.', 'inventivity-theme' ),
+            )
+        );
+
+        // Fonts section (Google Fonts optimizations).
+        $wp_customize->add_section(
+            'inventivity_theme_fonts',
+            array(
+                'title'       => __( 'Fonts', 'inventivity-theme' ),
+                'panel'       => 'inventivity_theme_panel',
+                'priority'    => 20,
+                'description' => __( 'Optimizations for Google Fonts (Elementor-friendly).', 'inventivity-theme' ),
+            )
+        );
+
+        $wp_customize->add_setting(
+            'inventivity_google_fonts_preconnect',
+            array(
+                'default'           => true,
+                'sanitize_callback' => 'inventivity_sanitize_checkbox',
+                'transport'         => 'refresh',
+            )
+        );
+        $wp_customize->add_control(
+            'inventivity_google_fonts_preconnect',
+            array(
+                'type'        => 'checkbox',
+                'section'     => 'inventivity_theme_fonts',
+                'label'       => __( 'Add preconnect for Google Fonts', 'inventivity-theme' ),
+                'description' => __( 'Adds resource hints for faster font loading (fonts.googleapis.com / fonts.gstatic.com).', 'inventivity-theme' ),
+            )
+        );
+
+        $wp_customize->add_setting(
+            'inventivity_google_fonts_force_swap',
+            array(
+                'default'           => true,
+                'sanitize_callback' => 'inventivity_sanitize_checkbox',
+                'transport'         => 'refresh',
+            )
+        );
+        $wp_customize->add_control(
+            'inventivity_google_fonts_force_swap',
+            array(
+                'type'        => 'checkbox',
+                'section'     => 'inventivity_theme_fonts',
+                'label'       => __( 'Force display=swap on Google Fonts URLs', 'inventivity-theme' ),
+                'description' => __( 'Ensures Google Fonts stylesheets include display=swap to reduce render-blocking.', 'inventivity-theme' ),
             )
         );
 
@@ -305,6 +363,57 @@ if ( ! function_exists( 'inventivity_theme_enqueue_assets' ) ) {
     }
 }
 add_action( 'wp_enqueue_scripts', 'inventivity_theme_enqueue_assets', 20 );
+
+/**
+ * Google Fonts optimizations (Elementor-friendly).
+ */
+if ( ! function_exists( 'inventivity_google_fonts_resource_hints' ) ) {
+    function inventivity_google_fonts_resource_hints( $urls, $relation_type ) {
+        if ( is_admin() ) {
+            return $urls;
+        }
+
+        if ( ! inventivity_is_perf_enabled( 'inventivity_google_fonts_preconnect', true ) ) {
+            return $urls;
+        }
+
+        if ( 'preconnect' === $relation_type ) {
+            $urls[] = 'https://fonts.googleapis.com';
+            $urls[] = array(
+                'href'        => 'https://fonts.gstatic.com',
+                'crossorigin' => 'anonymous',
+            );
+        }
+
+        return $urls;
+    }
+}
+add_filter( 'wp_resource_hints', 'inventivity_google_fonts_resource_hints', 10, 2 );
+
+if ( ! function_exists( 'inventivity_google_fonts_force_display_swap' ) ) {
+    function inventivity_google_fonts_force_display_swap( $src, $handle ) {
+        if ( is_admin() ) {
+            return $src;
+        }
+
+        if ( ! inventivity_is_perf_enabled( 'inventivity_google_fonts_force_swap', true ) ) {
+            return $src;
+        }
+
+        if ( false === strpos( $src, 'fonts.googleapis.com' ) ) {
+            return $src;
+        }
+
+        // If display is already set, leave it as-is.
+        if ( false !== strpos( $src, 'display=' ) ) {
+            return $src;
+        }
+
+        $glue = ( false === strpos( $src, '?' ) ) ? '?' : '&';
+        return $src . $glue . 'display=swap';
+    }
+}
+add_filter( 'style_loader_src', 'inventivity_google_fonts_force_display_swap', 10, 2 );
 
 /**
  * Performance toggles (safe by default = OFF).
