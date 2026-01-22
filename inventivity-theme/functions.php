@@ -676,3 +676,14 @@ if ( ! function_exists( 'inventivity_wc_disable_cart_fragments_offshop' ) ) {
     }
 }
 add_action( 'wp_enqueue_scripts', 'inventivity_wc_disable_cart_fragments_offshop', 201 );
+
+// Register WordPress menus (Inventivity Theme)
+add_action('after_setup_theme', 'inventivity_register_menus');
+function inventivity_register_menus() {
+
+    register_nav_menus([
+        'primary' => __('Primary Menu', 'inventivity'),
+        'footer'  => __('Footer Menu', 'inventivity'),
+    ]);
+
+}
